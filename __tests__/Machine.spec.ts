@@ -37,9 +37,9 @@ describe('Machine', () => {
     const machine = new Machine(s1, transitions);
     machine.addState(s2);
 
-    expect(machine.getCurrentState().name).toBe('state1');
+    expect(machine.currentState().name).toBe('state1');
     await machine.receive(createTransferEvent('go'));
-    expect(machine.getCurrentState().name).toBe('state2');
+    expect(machine.currentState().name).toBe('state2');
     expect(s1.leaveCount).toBe(1);
     expect(s2.enterCount).toBe(1);
   });
@@ -60,12 +60,12 @@ describe('Machine', () => {
 
     await machine.receive(createTransferEvent('go', { allow: false }));
     // guard 未通过，不应变更状态
-    expect(machine.getCurrentState().name).toBe('state1');
+    expect(machine.currentState().name).toBe('state1');
     expect(s1.leaveCount).toBe(0);
 
     await machine.receive(createTransferEvent('go', { allow: true }));
     // guard 通过，应该变为 state2
-    expect(machine.getCurrentState().name).toBe('state2');
+    expect(machine.currentState().name).toBe('state2');
     expect(s1.leaveCount).toBe(1);
     expect(s2.enterCount).toBe(1);
   });
@@ -87,11 +87,11 @@ describe('Machine', () => {
     machine.addState(s3);
 
     await machine.receive(createTransferEvent('asyncGo', { allow: false }));
-    expect(machine.getCurrentState().name).toBe('state1');
+    expect(machine.currentState().name).toBe('state1');
     expect(s1.leaveCount).toBe(0);
 
     await machine.receive(createTransferEvent('asyncGo', { allow: true }));
-    expect(machine.getCurrentState().name).toBe('state3');
+    expect(machine.currentState().name).toBe('state3');
     expect(s1.leaveCount).toBe(1);
     expect(s3.enterCount).toBe(1);
   });
@@ -111,10 +111,10 @@ describe('Machine', () => {
     const machine = new Machine(s1, transitions);
     machine.addState(s2);
 
-    expect(machine.isTransitioning()).toBe(false);
+    expect(machine.transitioning()).toBe(false);
     const receivePromise = machine.receive(createTransferEvent('go'));
-    expect(machine.isTransitioning()).toBe(true);
+    expect(machine.transitioning()).toBe(true);
     await receivePromise;
-    expect(machine.isTransitioning()).toBe(false);
+    expect(machine.transitioning()).toBe(false);
   });
 }); 

@@ -1,5 +1,6 @@
 import { TransferEvent } from './TransferEvent';
 import { State } from './State';
+import {atom, Atom} from "data0";
 
 /**
  * 定义一个 Guard 函数类型，可以是同步或异步
@@ -28,16 +29,16 @@ interface Transition {
  * Machine 类，用来控制所有的状态流转逻辑
  */
 export class Machine {
-  private currentState: State;
+  public currentState: Atom<State>;
   private states: Map<string, State>;
   private transitions: Transition[];
-  private transitioning: boolean;
+  public transitioning: Atom<boolean>;
 
   constructor(initialState: State, transitions: Transition[]) {
-    this.currentState = initialState;
+    this.currentState = atom(initialState);
     this.states = new Map<string, State>();
     this.transitions = transitions;
-    this.transitioning = false;
+    this.transitioning = atom(false);
 
     // 用目录的方式，方便在后续扩展中自动注册更多状态
     this.states.set(initialState.name, initialState);
@@ -50,25 +51,19 @@ export class Machine {
     this.states.set(state.name, state);
   }
 
-  /**
-   * 是否正在流转中
-   */
-  public isTransitioning(): boolean {
-    return this.transitioning;
-  }
 
   /**
    * 主动接收到一个事件时，尝试进行状态流转
    */
   public async receive(event: TransferEvent): Promise<void> {
-    if (this.transitioning) {
+    if (this.transitioning()) {
       return;
     }
 
-    this.transitioning = true;
+    this.transitioning(true);
     try {
       const possibleTransitions = this.transitions.filter((t) => {
-        return t.from === this.currentState.name && t.eventName === event.type;
+        return t.from === this.currentState.raw.name && t.eventName === event.type;
       });
 
       if (possibleTransitions.length === 0) {
@@ -84,27 +79,20 @@ export class Machine {
       const guardPassed = transition.guard
         ? await transition.guard(
             event,
-            this.currentState,
+            this.currentState.raw,
             nextState
           )
         : true;
 
       if (guardPassed) {
-        this.currentState.leave(event);
+        this.currentState.raw.leave(event);
 
-        const prevState = this.currentState;
-        this.currentState = nextState;
+        const prevState = this.currentState.raw;
+        this.currentState(nextState);
         nextState.enter(prevState, event);
       }
     } finally {
-      this.transitioning = false;
+      this.transitioning(false);
     }
   }
-
-  /**
-   * 获取当前状态
-   */
-  public getCurrentState(): State {
-    return this.currentState;
-  }
-} 
+}

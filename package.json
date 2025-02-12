@@ -1,0 +1,33 @@
+{
+  "name": "data0-statemachine",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "vitest",
+    "build": "vite build --config vite.prod.config.ts",
+    "release": "node scripts/release.js"
+  },
+  "type": "module",
+  "typings": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.umd.cjs"
+    }
+  },
+  "dependencies": {
+    "vite": "^6.1.0"
+  },
+  "peerDependencies": {
+    "data0": "^1.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "happy-dom": "^16.7.3",
+    "jsdom": "^24.1.1",
+    "typescript": "^5.5.4",
+    "vite-plugin-dts": "^4.0.0-beta.1",
+    "vite-tsconfig-paths": "^4.3.2",
+    "vitest": "^3.0.5"
+  }
+}

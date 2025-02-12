@@ -16,7 +16,7 @@ export default {
     lib: {
       // Could also be a dictionary or array of multiple entry points
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'RxRouter',
+      name: 'StateMachine',
       // the proper extensions will be added
       fileName: 'index',
     },
@@ -26,7 +26,7 @@ export default {
     },
   },
   plugins: [dts({
-    tsconfigPath: resolve(__dirname, '../../tsconfig.prod.json'),
+    tsconfigPath: resolve(__dirname, './tsconfig.prod.json'),
     rollupTypes: true,
     include: ['src/**/*.ts'],
   })]

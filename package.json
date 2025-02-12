@@ -1,5 +1,5 @@
 {
-  "name": "@data/0statemachine",
+  "name": "@data0/statemachine",
   "version": "0.0.1",
   "scripts": {
     "test": "vitest run",

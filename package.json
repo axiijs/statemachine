@@ -4,7 +4,7 @@
   "scripts": {
     "test": "vitest",
     "build": "vite build --config vite.prod.config.ts",
-    "release": "node scripts/release.js"
+    "release": "release-it"
   },
   "type": "module",
   "typings": "./dist/index.d.ts",
@@ -15,19 +15,33 @@
       "require": "./dist/index.umd.cjs"
     }
   },
-  "dependencies": {
-    "vite": "^6.1.0"
-  },
   "peerDependencies": {
     "data0": "^1.8.0"
   },
   "devDependencies": {
+    "@release-it/conventional-changelog": "^10.0.0",
     "@types/node": "^22.0.0",
-    "happy-dom": "^16.7.3",
-    "jsdom": "^24.1.1",
+    "release-it": "^18.1.2",
     "typescript": "^5.5.4",
+    "vite": "^6.1.0",
     "vite-plugin-dts": "^4.0.0-beta.1",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^3.0.5"
+  },
+  "release-it": {
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "conventionalcommits"
+      }
+    },
+    "git": {
+      "commitMessage": "chore(release): v${version}",
+      "tagName": "v${version}",
+      "push": true,
+      "requireCleanWorkingDir": true
+    },
+    "npm": {
+      "publish": true
+    }
   }
 }

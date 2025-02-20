@@ -2,14 +2,19 @@ import { TransferEvent } from './TransferEvent';
 import { State } from './State';
 import {atom, Atom} from "data0";
 
+
+export type MiddlewareNext = (value?: boolean) => void
 /**
  * 定义一个 Guard 函数类型，可以是同步或异步
  */
-export type GuardFunction = (
+export type Middleware = (
+    next: MiddlewareNext,
   event: TransferEvent,
   currentState: State,
-  nextState: State
-) => boolean | Promise<boolean>;
+  nextState: State,
+
+) => any | Promise<any>;
+
 
 /**
  * Transition 用来定义状态之间的流转规则
@@ -19,10 +24,11 @@ export type GuardFunction = (
  * guard: 判断是否允许流转的函数，可选
  */
 interface Transition {
+  name?:string;
   from: string;
   event: string;
   to: string;
-  guard?: GuardFunction;
+  guard?: Middleware;
 }
 
 /**
@@ -30,8 +36,10 @@ interface Transition {
  */
 export class Machine {
   public currentState: Atom<State> = atom(null) as Atom<State>;
+  public rejectedMiddleware: Atom<Middleware | null> = atom(null);
   private states: Map<string, State> = new Map<string, State>();
   public transitioning: Atom<boolean> = atom(false);
+  private middlewaresByTransitionName: Map<string, Middleware[]> = new Map<string, Middleware[]>();
 
   constructor(public initialState: string, public transitions: Transition[]) {
   }
@@ -46,6 +54,12 @@ export class Machine {
     this.states.set(state.name, state);
   }
 
+  addMiddleware(transitionName:string, ...middlewares:Middleware[]) {
+    if(!this.middlewaresByTransitionName.has(transitionName)) {
+      this.middlewaresByTransitionName.set(transitionName, [])
+    }
+    this.middlewaresByTransitionName.get(transitionName)!.push(...middlewares)
+  }
 
   /**
    * 主动接收到一个事件时，尝试进行状态流转
@@ -55,8 +69,8 @@ export class Machine {
       return;
     }
 
+    this.rejectedMiddleware(null);
     this.transitioning(true);
-    try {
       const possibleTransitions = this.transitions.filter((t) => {
         return t.from === this.currentState.raw!.name && t.event === event.type;
       });
@@ -71,23 +85,41 @@ export class Machine {
         return;
       }
 
-      const guardPassed = transition.guard
-        ? await transition.guard(
-            event,
-            this.currentState.raw!,
-            nextState
-          )
-        : true;
-
-      if (guardPassed) {
+      const completeTransition = () => {
         this.currentState.raw!.leave(event);
 
         const prevState = this.currentState.raw;
         this.currentState(nextState);
         nextState.enter(prevState, event);
       }
-    } finally {
+
+      const middlewares = this.middlewaresByTransitionName.get(transition.name!)
+
+      if (!middlewares || middlewares.length === 0) {
+        completeTransition()
+        return
+      } else {
+        const reject = (middleware:Middleware) => this.rejectedMiddleware(middleware)
+        const chainedMiddleware = this.chainedMiddleware(middlewares, 0, completeTransition, reject)
+        await chainedMiddleware(event, this.currentState.raw!, nextState)
+      }
+
       this.transitioning(false);
-    }
+  }
+
+  chainedMiddleware(middlewares:Middleware[], index:number, complete:()=>void, reject:(middleware:Middleware)=>void) {
+      return async (event: TransferEvent, currentState: State, nextState: State) => {
+        return middlewares[index](async (value:any) => {
+          if(value!==false) {
+            if (index < middlewares.length - 1 ) {
+              await this.chainedMiddleware(middlewares, index + 1, complete, reject)(event, currentState, nextState)
+            } else {
+                complete()
+            }
+          } else {
+            reject(middlewares[index])
+          }
+        },event, currentState, nextState)
+      }
   }
 }

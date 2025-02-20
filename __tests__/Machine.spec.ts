@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Machine, GuardFunction } from '../src/Machine';
+import {Machine, Middleware, MiddlewareNext} from '../src/Machine';
 import { State } from '../src/State';
 import { createTransferEvent, TransferEvent } from '../src/TransferEvent';
 
@@ -46,19 +46,17 @@ describe('Machine', () => {
   });
 
   it('should switch state when guard is fulfilled', async () => {
-    const guardForGo: GuardFunction = (event: TransferEvent) => {
-      if (event.detail && event.detail.allow) {
-        return true;
-      }
-      return false;
+    const guardForGo: Middleware = (next:MiddlewareNext, event: TransferEvent) => {
+      next(event.detail?.allow === true);
     };
 
     const transitions = [
-      { from: 'state1', event: 'go', to: 'state2', guard: guardForGo },
+      { from: 'state1', event: 'go', to: 'state2', name:'t1'},
     ];
     const machine = new Machine('state1', transitions);
     machine.addState(s1);
     machine.addState(s2);
+    machine.addMiddleware('t1', guardForGo);
 
     await machine.receive(createTransferEvent('go', { allow: false }));
     // guard 未通过，不应变更状态
@@ -74,46 +72,53 @@ describe('Machine', () => {
 
   it('should handle async guard correctly', async () => {
     // 模拟异步 guard
-    const asyncGuard: GuardFunction = async (event: TransferEvent) => {
-      return new Promise((resolve) => {
+    const asyncGuard: Middleware = async (next: MiddlewareNext,event: TransferEvent) => {
+      const shouldGo = await new Promise<boolean>((resolve) => {
         setTimeout(() => {
           resolve(event.detail?.allow === true);
         }, 50);
       });
+      return next(shouldGo)
     };
 
     const transitions = [
-      { from: 'state1', event: 'asyncGo', to: 'state3', guard: asyncGuard },
+      { from: 'state1', event: 'asyncGo', to: 'state3', name: 't1' },
     ];
     const machine = new Machine('state1', transitions);
     machine.addState(s1);
     machine.addState(s3);
+    machine.addMiddleware('t1', asyncGuard);
 
     await machine.receive(createTransferEvent('asyncGo', { allow: false }));
     expect(machine.currentState().name).toBe('state1');
+    expect(machine.rejectedMiddleware()).toBe(asyncGuard);
     expect(s1.leaveCount).toBe(0);
 
     await machine.receive(createTransferEvent('asyncGo', { allow: true }));
     expect(machine.currentState().name).toBe('state3');
     expect(s1.leaveCount).toBe(1);
     expect(s3.enterCount).toBe(1);
+    expect(machine.rejectedMiddleware()).toBe(null);
+
   });
 
   it('should set transitioning when in progress', async () => {
     // 模拟异步 guard
-    const asyncGuard: GuardFunction = async (event: TransferEvent) => {
-      return new Promise((resolve) => {
+    const asyncGuard: Middleware = async (next: MiddlewareNext,event: TransferEvent) => {
+      const shouldGo = await new Promise<boolean>((resolve) => {
         setTimeout(() => {
           resolve(event.detail?.allow === true);
         }, 50);
       });
+      return next(shouldGo)
     };
     const transitions = [
-      { from: 'state1', event: 'go', to: 'state2', guard: asyncGuard },
+      { from: 'state1', event: 'go', to: 'state2', name: 't1' },
     ];
     const machine = new Machine('state1', transitions);
     machine.addState(s1);
     machine.addState(s2);
+    machine.addMiddleware('t1', asyncGuard);
 
     expect(machine.transitioning()).toBe(false);
     const receivePromise = machine.receive(createTransferEvent('go'));
@@ -121,4 +126,35 @@ describe('Machine', () => {
     await receivePromise;
     expect(machine.transitioning()).toBe(false);
   });
+
+  it('multiple middlewares should be executed in order', async () => {
+    const expectOrder: number[] = [];
+    const middlewares: Middleware[] = [
+      (next: MiddlewareNext, event: TransferEvent) => {
+        expectOrder.push(1);
+        next()
+        expectOrder.push(4);
+      },
+      (next: MiddlewareNext, event: TransferEvent) => {
+        expectOrder.push(2);
+        next();
+      },
+      (next: MiddlewareNext, event: TransferEvent) => {
+        expectOrder.push(3);
+        next();
+      },
+    ];
+
+    const transitions = [
+      { from: 'state1', event: 'go', to: 'state2', name: 't1' },
+    ];
+    const machine = new Machine('state1', transitions);
+    machine.addState(s1);
+    machine.addState(s2);
+    machine.addMiddleware('t1', ...middlewares);
+
+    await machine.receive(createTransferEvent('go', { step: 1 }));
+    expect(expectOrder).toEqual([1, 2, 3, 4]);
+  })
+
 }); 

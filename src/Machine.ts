@@ -14,13 +14,13 @@ export type GuardFunction = (
 /**
  * Transition 用来定义状态之间的流转规则
  * from: 当前状态名
- * eventName: 触发流转的事件名称
+ * event: 触发流转的事件名称
  * to: 目标状态名
  * guard: 判断是否允许流转的函数，可选
  */
 interface Transition {
   from: string;
-  eventName: string;
+  event: string;
   to: string;
   guard?: GuardFunction;
 }
@@ -29,25 +29,20 @@ interface Transition {
  * Machine 类，用来控制所有的状态流转逻辑
  */
 export class Machine {
-  public currentState: Atom<State>;
-  private states: Map<string, State>;
-  private transitions: Transition[];
-  public transitioning: Atom<boolean>;
+  public currentState: Atom<State> = atom(null) as Atom<State>;
+  private states: Map<string, State> = new Map<string, State>();
+  public transitioning: Atom<boolean> = atom(false);
 
-  constructor(initialState: State, transitions: Transition[]) {
-    this.currentState = atom(initialState);
-    this.states = new Map<string, State>();
-    this.transitions = transitions;
-    this.transitioning = atom(false);
-
-    // 用目录的方式，方便在后续扩展中自动注册更多状态
-    this.states.set(initialState.name, initialState);
+  constructor(public initialState: string, public transitions: Transition[]) {
   }
 
   /**
    * 向 Machine 注册一个新的 State
    */
   addState(state: State) {
+    if (!this.currentState.raw && state.name === this.initialState) {
+        this.currentState(state);
+    }
     this.states.set(state.name, state);
   }
 
@@ -63,7 +58,7 @@ export class Machine {
     this.transitioning(true);
     try {
       const possibleTransitions = this.transitions.filter((t) => {
-        return t.from === this.currentState.raw.name && t.eventName === event.type;
+        return t.from === this.currentState.raw!.name && t.event === event.type;
       });
 
       if (possibleTransitions.length === 0) {
@@ -79,13 +74,13 @@ export class Machine {
       const guardPassed = transition.guard
         ? await transition.guard(
             event,
-            this.currentState.raw,
+            this.currentState.raw!,
             nextState
           )
         : true;
 
       if (guardPassed) {
-        this.currentState.raw.leave(event);
+        this.currentState.raw!.leave(event);
 
         const prevState = this.currentState.raw;
         this.currentState(nextState);

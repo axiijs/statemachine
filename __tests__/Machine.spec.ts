@@ -31,10 +31,11 @@ describe('Machine', () => {
 
   it('should switch state when receive an event without guard', async () => {
     const transitions = [
-      { from: 'state1', eventName: 'go', to: 'state2' },
+      { from: 'state1', event: 'go', to: 'state2' },
     ];
 
-    const machine = new Machine(s1, transitions);
+    const machine = new Machine('state1', transitions);
+    machine.addState(s1);
     machine.addState(s2);
 
     expect(machine.currentState().name).toBe('state1');
@@ -53,9 +54,10 @@ describe('Machine', () => {
     };
 
     const transitions = [
-      { from: 'state1', eventName: 'go', to: 'state2', guard: guardForGo },
+      { from: 'state1', event: 'go', to: 'state2', guard: guardForGo },
     ];
-    const machine = new Machine(s1, transitions);
+    const machine = new Machine('state1', transitions);
+    machine.addState(s1);
     machine.addState(s2);
 
     await machine.receive(createTransferEvent('go', { allow: false }));
@@ -81,9 +83,10 @@ describe('Machine', () => {
     };
 
     const transitions = [
-      { from: 'state1', eventName: 'asyncGo', to: 'state3', guard: asyncGuard },
+      { from: 'state1', event: 'asyncGo', to: 'state3', guard: asyncGuard },
     ];
-    const machine = new Machine(s1, transitions);
+    const machine = new Machine('state1', transitions);
+    machine.addState(s1);
     machine.addState(s3);
 
     await machine.receive(createTransferEvent('asyncGo', { allow: false }));
@@ -106,9 +109,10 @@ describe('Machine', () => {
       });
     };
     const transitions = [
-      { from: 'state1', eventName: 'go', to: 'state2', guard: asyncGuard },
+      { from: 'state1', event: 'go', to: 'state2', guard: asyncGuard },
     ];
-    const machine = new Machine(s1, transitions);
+    const machine = new Machine('state1', transitions);
+    machine.addState(s1);
     machine.addState(s2);
 
     expect(machine.transitioning()).toBe(false);

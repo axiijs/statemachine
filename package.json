@@ -7,6 +7,9 @@
     "release": "release-it"
   },
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "typings": "./dist/index.d.ts",
   "exports": {
     ".": {

@@ -1,6 +1,6 @@
 {
   "name": "statemachine0",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "test": "vitest run",
     "build": "vite build --config vite.prod.config.ts",

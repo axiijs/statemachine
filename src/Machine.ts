@@ -71,40 +71,40 @@ export class Machine {
 
     this.rejection(null);
     this.transitioning(true);
-      const possibleTransitions = this.transitions.filter((t) => {
-        return t.from === this.currentState.raw!.name && t.event === event.type;
-      });
+    const possibleTransitions = this.transitions.filter((t) => {
+      return t.from === this.currentState.raw!.name && t.event === event.type;
+    });
 
-      if (possibleTransitions.length === 0) {
-        return;
-      }
+    if (possibleTransitions.length === 0) {
+      return;
+    }
 
-      const transition = possibleTransitions[0];
-      const nextState = this.states.get(transition.to);
-      if (!nextState) {
-        return;
-      }
+    const transition = possibleTransitions[0];
+    const nextState = this.states.get(transition.to);
+    if (!nextState) {
+      return;
+    }
 
-      const completeTransition = () => {
-        this.currentState.raw!.leave(event);
+    const completeTransition = () => {
+      this.currentState.raw!.leave(event);
 
-        const prevState = this.currentState.raw;
-        this.currentState(nextState);
-        nextState.enter(prevState, event);
-      }
+      const prevState = this.currentState.raw;
+      this.currentState(nextState);
+      nextState.enter(prevState, event);
+    }
 
-      const middlewares = this.middlewaresByTransitionName.get(transition.name!)
+    const middlewares = this.middlewaresByTransitionName.get(transition.name!)
 
-      if (!middlewares || middlewares.length === 0) {
-        completeTransition()
-        return
-      } else {
-        const reject = (middleware:Middleware, detail:any) => this.rejection({ middleware, detail })
-        const chainedMiddleware = this.chainedMiddleware(middlewares, 0, completeTransition, reject)
-        await chainedMiddleware(event, this.currentState.raw!, nextState)
-      }
+    if (!middlewares || middlewares.length === 0) {
+      completeTransition()
+    } else {
+      const reject = (middleware:Middleware, detail:any) => this.rejection({ middleware, detail })
+      const chainedMiddleware = this.chainedMiddleware(middlewares, 0, completeTransition, reject)
+      await chainedMiddleware(event, this.currentState.raw!, nextState)
+    }
 
-      this.transitioning(false);
+    this.transitioning(false);
+    return
   }
 
   chainedMiddleware(middlewares:Middleware[], index:number, complete:()=>void, reject:(middleware:Middleware, detail?: any)=>void) {

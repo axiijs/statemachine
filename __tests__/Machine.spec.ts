@@ -73,12 +73,13 @@ describe('Machine', () => {
   it('should handle async guard correctly', async () => {
     // 模拟异步 guard
     const asyncGuard: Middleware = async (next: MiddlewareNext,event: TransferEvent) => {
-      const shouldGo = await new Promise<boolean>((resolve) => {
+      const {allow, reason} = await new Promise<{allow:boolean, reason:any}>((resolve) => {
         setTimeout(() => {
-          resolve(event.detail?.allow === true);
+          const allow = event.detail?.allow === true;
+          resolve({allow, reason: allow?null:'not allowed'});
         }, 50);
       });
-      return next(shouldGo)
+      return next(allow, reason)
     };
 
     const transitions = [
@@ -91,14 +92,15 @@ describe('Machine', () => {
 
     await machine.receive(createTransferEvent('asyncGo', { allow: false }));
     expect(machine.currentState().name).toBe('state1');
-    expect(machine.rejectedMiddleware()).toBe(asyncGuard);
+    expect(machine.rejection()?.middleware).toBe(asyncGuard);
+    expect(machine.rejection()?.detail).toBe('not allowed');
     expect(s1.leaveCount).toBe(0);
 
     await machine.receive(createTransferEvent('asyncGo', { allow: true }));
     expect(machine.currentState().name).toBe('state3');
     expect(s1.leaveCount).toBe(1);
     expect(s3.enterCount).toBe(1);
-    expect(machine.rejectedMiddleware()).toBe(null);
+    expect(machine.rejection()).toBe(null);
 
   });
 

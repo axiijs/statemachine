@@ -3,7 +3,7 @@ import { State } from './State';
 import {atom, Atom} from "data0";
 
 
-export type MiddlewareNext = (value?: boolean) => void
+export type MiddlewareNext = (value?: boolean, detail?: any) => void
 /**
  * 定义一个 Guard 函数类型，可以是同步或异步
  */
@@ -36,7 +36,7 @@ interface Transition {
  */
 export class Machine {
   public currentState: Atom<State> = atom(null) as Atom<State>;
-  public rejectedMiddleware: Atom<Middleware | null> = atom(null);
+  public rejection: Atom<{middleware:Middleware, detail:any} | null> = atom(null);
   private states: Map<string, State> = new Map<string, State>();
   public transitioning: Atom<boolean> = atom(false);
   private middlewaresByTransitionName: Map<string, Middleware[]> = new Map<string, Middleware[]>();
@@ -69,7 +69,7 @@ export class Machine {
       return;
     }
 
-    this.rejectedMiddleware(null);
+    this.rejection(null);
     this.transitioning(true);
       const possibleTransitions = this.transitions.filter((t) => {
         return t.from === this.currentState.raw!.name && t.event === event.type;
@@ -99,7 +99,7 @@ export class Machine {
         completeTransition()
         return
       } else {
-        const reject = (middleware:Middleware) => this.rejectedMiddleware(middleware)
+        const reject = (middleware:Middleware, detail:any) => this.rejection({ middleware, detail })
         const chainedMiddleware = this.chainedMiddleware(middlewares, 0, completeTransition, reject)
         await chainedMiddleware(event, this.currentState.raw!, nextState)
       }
@@ -107,9 +107,9 @@ export class Machine {
       this.transitioning(false);
   }
 
-  chainedMiddleware(middlewares:Middleware[], index:number, complete:()=>void, reject:(middleware:Middleware)=>void) {
+  chainedMiddleware(middlewares:Middleware[], index:number, complete:()=>void, reject:(middleware:Middleware, detail?: any)=>void) {
       return async (event: TransferEvent, currentState: State, nextState: State) => {
-        return middlewares[index](async (value:any) => {
+        return middlewares[index](async (value:any, detail:any) => {
           if(value!==false) {
             if (index < middlewares.length - 1 ) {
               await this.chainedMiddleware(middlewares, index + 1, complete, reject)(event, currentState, nextState)
@@ -117,7 +117,7 @@ export class Machine {
                 complete()
             }
           } else {
-            reject(middlewares[index])
+            reject(middlewares[index], detail)
           }
         },event, currentState, nextState)
       }

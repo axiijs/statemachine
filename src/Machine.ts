@@ -1,4 +1,4 @@
-import { TransferEvent } from './TransferEvent';
+import { TransitionEvent } from './TransitionEvent';
 import { State } from './State';
 import {atom, Atom} from "data0";
 
@@ -9,7 +9,7 @@ export type MiddlewareNext = (value?: boolean, detail?: any) => void
  */
 export type Middleware = (
     next: MiddlewareNext,
-  event: TransferEvent,
+  event: TransitionEvent,
   currentState: State,
   nextState: State,
 
@@ -64,13 +64,11 @@ export class Machine {
   /**
    * 主动接收到一个事件时，尝试进行状态流转
    */
-  public async receive(event: TransferEvent): Promise<void> {
+  public async receive(event: TransitionEvent): Promise<void> {
     if (this.transitioning()) {
       return;
     }
 
-    this.rejection(null);
-    this.transitioning(true);
     const possibleTransitions = this.transitions.filter((t) => {
       return t.from === this.currentState.raw!.name && t.event === event.type;
     });
@@ -84,6 +82,9 @@ export class Machine {
     if (!nextState) {
       return;
     }
+
+    this.rejection(null);
+    this.transitioning(true);
 
     const completeTransition = () => {
       this.currentState.raw!.leave(event);
@@ -108,7 +109,7 @@ export class Machine {
   }
 
   chainedMiddleware(middlewares:Middleware[], index:number, complete:()=>void, reject:(middleware:Middleware, detail?: any)=>void) {
-      return async (event: TransferEvent, currentState: State, nextState: State) => {
+      return async (event: TransitionEvent, currentState: State, nextState: State) => {
         return middlewares[index](async (value:any, detail:any) => {
           if(value!==false) {
             if (index < middlewares.length - 1 ) {

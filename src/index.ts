@@ -1,3 +1,3 @@
 export * from './Machine'
 export * from './State'
-export * from './TransferEvent'
+export * from './TransitionEvent'

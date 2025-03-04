@@ -28,7 +28,7 @@ interface Transition {
   from: string;
   event: string;
   to: string;
-  guard?: Middleware;
+  middlewares?: Middleware[];
 }
 
 /**
@@ -37,11 +37,26 @@ interface Transition {
 export class Machine {
   public currentState: Atom<State> = atom(null) as Atom<State>;
   public rejection: Atom<{middleware:Middleware, detail:any} | null> = atom(null);
-  private states: Map<string, State> = new Map<string, State>();
+  private states= new Map<string, State|null>();
   public transitioning: Atom<boolean> = atom(false);
   private middlewaresByTransitionName: Map<string, Middleware[]> = new Map<string, Middleware[]>();
 
-  constructor(public initialState: string, public transitions: Transition[]) {
+  constructor(public initialState: string, public transitions: Transition[], initialStates: State[] = []) {
+    initialStates.forEach((state) => {
+      this.addState(state);
+    });
+    transitions.forEach((transition) => {
+        if (!this.states.has(transition.from)) {
+          this.states.set(transition.from, null);
+        }
+        if (!this.states.has(transition.to)) {
+          this.states.set(transition.to, null);
+        }
+
+        if(transition.middlewares) {
+          this.addMiddleware(transition.name!, ...transition.middlewares)
+        }
+    })
   }
 
   /**
@@ -78,9 +93,15 @@ export class Machine {
     }
 
     const transition = possibleTransitions[0];
-    const nextState = this.states.get(transition.to);
+    if (!this.states.has(transition.to)) {
+      return
+    }
+
+    // lazy create next state
+    let nextState = this.states.get(transition.to);
     if (!nextState) {
-      return;
+        nextState = new State(transition.to);
+        this.addState(nextState);
     }
 
     this.rejection(null);

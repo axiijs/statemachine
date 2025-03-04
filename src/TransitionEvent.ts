@@ -4,7 +4,7 @@
  */
 export interface TransitionEvent {
   type: string,
-    detail?: Record<string, unknown>
+  detail?: any
 }
 
 /**
@@ -12,7 +12,7 @@ export interface TransitionEvent {
  */
 export function createTransitionEvent(
   type: string,
-  detail?: Record<string, unknown>
+  detail?: any
 ): TransitionEvent {
   return { type, detail }
 } 

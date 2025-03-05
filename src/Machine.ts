@@ -79,7 +79,7 @@ export class Machine {
   /**
    * 主动接收到一个事件时，尝试进行状态流转
    */
-  public async receive(event: TransitionEvent): Promise<void> {
+  public receive = async (event: TransitionEvent): Promise<void> => {
     if (this.transitioning()) {
       return;
     }
